@@ -11,12 +11,16 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  http: ^0.14.0  # For API calls
+  http: 1.2.2  # For API calls
   provider: ^6.0.0  # For state management
   shared_preferences: ^2.0.7  # For storing user sessions
   flutter_secure_storage: ^5.0.2  # Secure local storage
   cupertino_icons: ^1.0.8
   flutter_lints: ^4.0.0
+  sqflite: ^2.2.5  # SQLite plugin for Flutter
+  path_provider: ^2.0.12  # Provides paths for storing databases
+  email_validator: ^2.0.1  # For email validation
+  fluttertoast: ^8.2.8  # For showing toast messages
 
 flutter:
   uses-material-design: true
