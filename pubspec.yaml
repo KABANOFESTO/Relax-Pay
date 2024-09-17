@@ -1,0 +1,22 @@
+name: finpayconnect_seller
+description: "A new Flutter project."
+
+publish_to: 'none' 
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.5.3
+
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^0.14.0  # For API calls
+  provider: ^6.0.0  # For state management
+  shared_preferences: ^2.0.7  # For storing user sessions
+  flutter_secure_storage: ^5.0.2  # Secure local storage
+  cupertino_icons: ^1.0.8
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
