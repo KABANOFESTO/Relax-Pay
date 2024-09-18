@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'screens/login_screen.dart';
 import 'screens/signup_screen.dart';
 import 'screens/reset_passord_screen.dart';
+import 'screens/dashboard_screen.dart';
+import 'screens/details_screen.dart';
 
 void main() => runApp(MyApp());
 
@@ -9,14 +11,19 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'SQLite Auth App',
+      title: 'Relax-pay-App',
+      debugShowCheckedModeBanner: false, // Disable the debug banner
       initialRoute: '/login',
       routes: {
         '/login': (context) => LoginScreen(),
         '/signup': (context) => SignupScreen(),
         '/reset_password': (context) => ResetPasswordScreen(),
-        //
-        // You can add other routes like HomeScreen after successful login
+        '/dashboard': (context) => DashboardScreen(),
+        '/buying': (context) => BuyingScreen(),
+        '/selling': (context) => SellingScreen(),
+        '/transaction': (context) => TransactionScreen(),
+        '/loan': (context) => LoanScreen(),
+        // Add other routes here
       },
       theme: ThemeData(
         primarySwatch: Colors.blue,
