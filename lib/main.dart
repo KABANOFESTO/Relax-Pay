@@ -21,8 +21,8 @@ class MyApp extends StatelessWidget {
         '/dashboard': (context) => DashboardScreen(),
         '/buying': (context) => BuyingScreen(),
         '/selling': (context) => SellingScreen(),
-        '/transaction': (context) => TransactionScreen(),
-        '/loan': (context) => LoanScreen(),
+        // '/transaction': (context) => TransactionScreen(),
+        '/stock': (context) => StocksListScreen(),
         // Add other routes here
       },
       theme: ThemeData(

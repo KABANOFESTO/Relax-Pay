@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
-import '../config/db_heleper.dart'; // Adjust based on your DBHelper location
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import './email_service.dart';
 
 class ResetPasswordScreen extends StatefulWidget {
   @override
@@ -9,19 +11,40 @@ class ResetPasswordScreen extends StatefulWidget {
 
 class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   final _emailController = TextEditingController();
-  final DBHelper _dbHelper = DBHelper();
 
   Future<void> _resetPassword() async {
     String email = _emailController.text;
 
-    var user = await _dbHelper.findUserByEmail(email);
+    if (email.isEmpty) {
+      Fluttertoast.showToast(msg: "Please enter your email");
+      return;
+    }
 
-    if (user != null) {
-      // Call your email service to send a reset password email
-      Fluttertoast.showToast(msg: "Password reset email sent");
-      Navigator.pop(context);
-    } else {
-      Fluttertoast.showToast(msg: "User not found");
+    try {
+      var url = Uri.parse(
+          'https://relax-pay-endpoints.onrender.com/reset/forgot-password');
+      var response = await http.post(
+        url,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({'email': email}),
+      );
+
+      var responseBody = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        // Assuming the API returns a reset link
+        String resetLink = responseBody['resetLink'];
+
+        // Send email using the EmailService
+        await EmailService.sendResetPasswordEmail(email, resetLink);
+
+        Fluttertoast.showToast(msg: "Reset email sent successfully");
+        Navigator.pop(context);
+      } else {
+        Fluttertoast.showToast(
+            msg: responseBody['message'] ?? "Failed to send reset email");
+      }
+    } catch (error) {
+      Fluttertoast.showToast(msg: "Error: $error");
     }
   }
 
@@ -31,7 +54,6 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       appBar: AppBar(title: Text('Reset Password')),
       body: Stack(
         children: [
-          // Background image
           Container(
             decoration: BoxDecoration(
               image: DecorationImage(
@@ -68,7 +90,6 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                     ),
                   ),
                   SizedBox(height: 20),
-                  // Email Input
                   TextField(
                     controller: _emailController,
                     decoration: InputDecoration(
@@ -85,7 +106,6 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                     style: TextStyle(color: Colors.white),
                   ),
                   SizedBox(height: 20),
-                  // Reset Password Button
                   ElevatedButton(
                     onPressed: _resetPassword,
                     style: ElevatedButton.styleFrom(
@@ -97,7 +117,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                       backgroundColor: Colors.white.withOpacity(0.4),
                     ),
                     child: Text(
-                      'Reset',
+                      'Send Reset Email',
                       style: TextStyle(color: Colors.white),
                     ),
                   ),

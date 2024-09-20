@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
-import '../config/db_heleper.dart'; // Ensure this path is correct
+import 'package:http/http.dart' as http;
+import 'dart:convert'; // For encoding and decoding JSON
 
 class LoginScreen extends StatefulWidget {
   @override
@@ -10,14 +11,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final DBHelper _dbHelper = DBHelper();
   bool _rememberMe = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _dbHelper.initDB(); // Initialize the database
-  }
 
   Future<void> _login() async {
     String email = _emailController.text.trim();
@@ -32,14 +26,36 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    var user = await _dbHelper.getUser(email, password);
+    // Create the request payload
+    Map<String, String> loginPayload = {
+      'email': email,
+      'password': password,
+    };
 
-    if (user != null) {
-      Fluttertoast.showToast(msg: "Login successful");
-      // Navigate to the dashboard
-      Navigator.pushReplacementNamed(context, '/dashboard');
-    } else {
-      Fluttertoast.showToast(msg: "Invalid email or password");
+    try {
+      // Make the POST request to the login API
+      final response = await http.post(
+        Uri.parse('https://relax-pay-endpoints.onrender.com/user/login'),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode(loginPayload),
+      );
+
+      if (response.statusCode == 200) {
+        // Parse the response body
+        var responseBody = jsonDecode(response.body);
+        
+        if (responseBody['success']) {
+          Fluttertoast.showToast(msg: "Login successful");
+          // Navigate to the dashboard
+          Navigator.pushReplacementNamed(context, '/dashboard');
+        } else {
+          Fluttertoast.showToast(msg: responseBody['message'] ?? "Login failed");
+        }
+      } else {
+        Fluttertoast.showToast(msg: "Failed to connect to server. Status code: ${response.statusCode}");
+      }
+    } catch (error) {
+      Fluttertoast.showToast(msg: "An error occurred: $error");
     }
   }
 

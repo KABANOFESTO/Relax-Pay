@@ -54,11 +54,11 @@ class DashboardScreen extends StatelessWidget {
               ),
               _buildDashboardItem(
                 context,
-                Icons.monetization_on,
-                'Loan',
+                Icons.inventory, // New stock icon
+                'Stock', // Changed label to "Stock"
                 Colors.purple,
                 () {
-                  Navigator.pushNamed(context, '/loan');
+                  Navigator.pushNamed(context, '/stock');
                 },
               ),
             ],

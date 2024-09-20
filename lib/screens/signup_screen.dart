@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
-import '../config/db_heleper.dart'; // Make sure this import path is correct
+import 'package:http/http.dart' as http;
+import 'dart:convert'; // For encoding/decoding JSON
 
 class SignupScreen extends StatefulWidget {
   @override
@@ -8,40 +9,53 @@ class SignupScreen extends StatefulWidget {
 }
 
 class _SignupScreenState extends State<SignupScreen> {
+  final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _phoneController = TextEditingController();
-  final DBHelper _dbHelper = DBHelper();
-
-  @override
-  void initState() {
-    super.initState();
-    _dbHelper.initDB(); // Initialize the database
-  }
 
   Future<void> _signup() async {
+    String name = _nameController.text.trim();
     String email = _emailController.text.trim();
     String password = _passwordController.text.trim();
-    String phone = _phoneController.text.trim();
 
-    if (email.isEmpty || password.isEmpty || phone.isEmpty) {
+    if (name.isEmpty || email.isEmpty || password.isEmpty) {
       Fluttertoast.showToast(msg: "Please fill all fields");
       return;
     }
 
-    var existingUser = await _dbHelper.findUserByEmail(email);
+    try {
+      var url =
+          Uri.parse('https://relax-pay-endpoints.onrender.com/user/signup');
 
-    if (existingUser == null) {
-      bool success = await _dbHelper
-          .insertUser({'email': email, 'password': password, 'phone': phone});
-      if (success) {
+      var response = await http.post(
+        url,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({
+          'username': name,
+          'email': email,
+          'password': password,
+        }),
+      );
+
+      if (response.statusCode == 201) {
         Fluttertoast.showToast(msg: "Registration successful!");
         Navigator.pushReplacementNamed(context, '/login');
       } else {
-        Fluttertoast.showToast(msg: "Registration failed. Please try again.");
+        var responseBody = jsonDecode(response.body);
+
+        // Handle duplicate key error (E11000)
+        if (responseBody['message'] != null &&
+            responseBody['message'].contains('E11000')) {
+          Fluttertoast.showToast(
+            msg: "Username already exists, please choose a different one",
+          );
+        } else {
+          Fluttertoast.showToast(
+              msg: responseBody['message'] ?? "Registration failed");
+        }
       }
-    } else {
-      Fluttertoast.showToast(msg: "User with this email already exists");
+    } catch (error) {
+      Fluttertoast.showToast(msg: "Error: $error");
     }
   }
 
@@ -88,6 +102,22 @@ class _SignupScreenState extends State<SignupScreen> {
                     ),
                   ),
                   SizedBox(height: 20),
+                  // Name Input
+                  TextField(
+                    controller: _nameController,
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: Colors.white.withOpacity(0.3),
+                      hintText: 'Name',
+                      prefixIcon: Icon(Icons.person, color: Colors.white),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(20),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                    style: TextStyle(color: Colors.white),
+                  ),
+                  SizedBox(height: 15),
                   // Email Input
                   TextField(
                     controller: _emailController,
@@ -102,23 +132,6 @@ class _SignupScreenState extends State<SignupScreen> {
                       ),
                     ),
                     keyboardType: TextInputType.emailAddress,
-                    style: TextStyle(color: Colors.white),
-                  ),
-                  SizedBox(height: 15),
-                  // Phone Input
-                  TextField(
-                    controller: _phoneController,
-                    decoration: InputDecoration(
-                      filled: true,
-                      fillColor: Colors.white.withOpacity(0.3),
-                      hintText: 'Phone',
-                      prefixIcon: Icon(Icons.phone, color: Colors.white),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(20),
-                        borderSide: BorderSide.none,
-                      ),
-                    ),
-                    keyboardType: TextInputType.phone,
                     style: TextStyle(color: Colors.white),
                   ),
                   SizedBox(height: 15),

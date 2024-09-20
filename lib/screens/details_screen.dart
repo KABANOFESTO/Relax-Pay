@@ -1,6 +1,70 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import '../config/db_heleper.dart';
+import 'package:http/http.dart' as http;
 
+void main() {
+  runApp(MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Stock Management',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+      ),
+      home: HomeScreen(),
+    );
+  }
+}
+
+class HomeScreen extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Stock Management'),
+      ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => BuyingScreen()),
+                );
+              },
+              child: Text('Buy Product'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => SellingScreen()),
+                );
+              },
+              child: Text('Sell Product'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => StocksListScreen()),
+                );
+              },
+              child: Text('View Stocks'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Buying Screen
 class BuyingScreen extends StatefulWidget {
   @override
   _BuyingScreenState createState() => _BuyingScreenState();
@@ -10,7 +74,6 @@ class _BuyingScreenState extends State<BuyingScreen> {
   final TextEditingController _productNameController = TextEditingController();
   final TextEditingController _priceController = TextEditingController();
   final TextEditingController _quantityController = TextEditingController();
-  final DBHelper _dbHelper = DBHelper();
 
   void _buyProduct() async {
     String productName = _productNameController.text.trim();
@@ -23,23 +86,29 @@ class _BuyingScreenState extends State<BuyingScreen> {
     }
 
     try {
-      await _dbHelper.insertProduct({
-        'name': productName,
+      await _postStockData({
+        'product': productName,
         'price': price,
         'quantity': quantity,
-      });
-
-      await _dbHelper.insertBuyTransaction({
-        'product_name': productName,
-        'price': price,
-        'quantity': quantity,
-        'date': DateTime.now().toIso8601String(),
       });
 
       _showSnackBar('Product bought successfully!');
       _clearFields();
     } catch (e) {
       _showSnackBar('Error: ${e.toString()}');
+    }
+  }
+
+  Future<void> _postStockData(Map<String, dynamic> data) async {
+    final response = await http.post(
+      Uri.parse(
+          'https://relax-pay-endpoints.onrender.com/customer/stock'), // Buying endpoint
+      body: json.encode(data),
+      headers: {'Content-Type': 'application/json'},
+    );
+
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      throw Exception('Failed to save purchase data');
     }
   }
 
@@ -80,9 +149,11 @@ class _BuyingScreenState extends State<BuyingScreen> {
                   children: [
                     _buildTextField(_productNameController, 'Product Name'),
                     SizedBox(height: 16),
-                    _buildTextField(_priceController, 'Price', TextInputType.number),
+                    _buildTextField(
+                        _priceController, 'Price', TextInputType.number),
                     SizedBox(height: 16),
-                    _buildTextField(_quantityController, 'Quantity', TextInputType.number),
+                    _buildTextField(
+                        _quantityController, 'Quantity', TextInputType.number),
                     SizedBox(height: 24),
                     ElevatedButton(
                       onPressed: _buyProduct,
@@ -91,9 +162,11 @@ class _BuyingScreenState extends State<BuyingScreen> {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(15),
                         ),
-                        padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        padding:
+                            EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                       ),
-                      child: Text('Buy', style: TextStyle(fontSize: 18, color: Colors.white)),
+                      child: Text('Buy',
+                          style: TextStyle(fontSize: 18, color: Colors.white)),
                     ),
                   ],
                 ),
@@ -105,7 +178,8 @@ class _BuyingScreenState extends State<BuyingScreen> {
     );
   }
 
-  Widget _buildTextField(TextEditingController controller, String label, [TextInputType? keyboardType]) {
+  Widget _buildTextField(TextEditingController controller, String label,
+      [TextInputType? keyboardType]) {
     return TextField(
       controller: controller,
       keyboardType: keyboardType,
@@ -126,30 +200,51 @@ class SellingScreen extends StatefulWidget {
 }
 
 class _SellingScreenState extends State<SellingScreen> {
-  final TextEditingController _productNameController = TextEditingController();
-  final TextEditingController _customersController = TextEditingController();
-  final DBHelper _dbHelper = DBHelper();
+  final TextEditingController _productController = TextEditingController();
+  final TextEditingController _quantityController = TextEditingController();
+  final TextEditingController _numberToReceiveController =
+      TextEditingController();
+  final TextEditingController _numberToPayController = TextEditingController();
 
   void _sellProduct() async {
-    String productName = _productNameController.text.trim();
-    int customers = int.tryParse(_customersController.text) ?? 0;
+    String product = _productController.text.trim();
+    int quantity = int.tryParse(_quantityController.text) ?? 0;
+    int numberToReceive = int.tryParse(_numberToReceiveController.text) ?? 0;
+    int numberToPay = int.tryParse(_numberToPayController.text) ?? 0;
 
-    if (productName.isEmpty || customers <= 0) {
+    if (product.isEmpty ||
+        quantity <= 0 ||
+        numberToReceive <= 0 ||
+        numberToPay <= 0) {
       _showSnackBar('Please enter valid details');
       return;
     }
 
     try {
-      await _dbHelper.insertSellTransaction({
-        'product_name': productName,
-        'quantity': customers,
-        'date': DateTime.now().toIso8601String(),
+      await _postSaleData({
+        'product': product,
+        'quantity': quantity,
+        'number_to_receive': numberToReceive,
+        'number_to_pay': numberToPay,
       });
 
       _showSnackBar('Product sold successfully!');
       _clearFields();
     } catch (e) {
       _showSnackBar('Error: ${e.toString()}');
+    }
+  }
+
+  Future<void> _postSaleData(Map<String, dynamic> data) async {
+    final response = await http.post(
+      Uri.parse(
+          'https://relax-pay-endpoints.onrender.com/stock'), // Selling endpoint
+      body: json.encode(data),
+      headers: {'Content-Type': 'application/json'},
+    );
+
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      throw Exception('Failed to save sale data');
     }
   }
 
@@ -161,8 +256,10 @@ class _SellingScreenState extends State<SellingScreen> {
 
   void _clearFields() {
     setState(() {
-      _productNameController.clear();
-      _customersController.clear();
+      _productController.clear();
+      _quantityController.clear();
+      _numberToReceiveController.clear();
+      _numberToPayController.clear();
     });
   }
 
@@ -187,9 +284,16 @@ class _SellingScreenState extends State<SellingScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    _buildTextField(_productNameController, 'Product Name'),
+                    _buildTextField(_productController, 'Product'),
                     SizedBox(height: 16),
-                    _buildTextField(_customersController, 'Number of Customers', TextInputType.number),
+                    _buildTextField(
+                        _quantityController, 'Quantity', TextInputType.number),
+                    SizedBox(height: 16),
+                    _buildTextField(_numberToReceiveController,
+                        'Number to Receive', TextInputType.number),
+                    SizedBox(height: 16),
+                    _buildTextField(_numberToPayController, 'Number to Pay',
+                        TextInputType.number),
                     SizedBox(height: 24),
                     ElevatedButton(
                       onPressed: _sellProduct,
@@ -198,9 +302,11 @@ class _SellingScreenState extends State<SellingScreen> {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(15),
                         ),
-                        padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        padding:
+                            EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                       ),
-                      child: Text('Sell', style: TextStyle(fontSize: 18, color: Colors.white)),
+                      child: Text('Sell',
+                          style: TextStyle(fontSize: 18, color: Colors.white)),
                     ),
                   ],
                 ),
@@ -212,7 +318,8 @@ class _SellingScreenState extends State<SellingScreen> {
     );
   }
 
-  Widget _buildTextField(TextEditingController controller, String label, [TextInputType? keyboardType]) {
+  Widget _buildTextField(TextEditingController controller, String label,
+      [TextInputType? keyboardType]) {
     return TextField(
       controller: controller,
       keyboardType: keyboardType,
@@ -226,201 +333,114 @@ class _SellingScreenState extends State<SellingScreen> {
   }
 }
 
-// Transaction Screen
-class TransactionScreen extends StatelessWidget {
+// Stocks List Screen
+class StocksListScreen extends StatefulWidget {
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Transactions'),
-        centerTitle: true,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Center(
-          child: Card(
-            elevation: 4,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            child: ListView(
-              padding: const EdgeInsets.all(16.0),
-              shrinkWrap: true,
-              children: [
-                _buildTransactionOption(context, 'Daily Transactions'),
-                Divider(),
-                _buildTransactionOption(context, 'Weekly Transactions'),
-                Divider(),
-                _buildTransactionOption(context, 'Monthly Transactions'),
-                Divider(),
-                _buildTransactionOption(context, 'Yearly Transactions'),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTransactionOption(BuildContext context, String title) {
-    return ListTile(
-      title: Text(title, style: TextStyle(fontSize: 18)),
-      onTap: () {
-        // TODO: Implement navigation to transaction details
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Navigate to $title')),
-        );
-      },
-      trailing: Icon(Icons.arrow_forward_ios),
-    );
-  }
+  _StocksListScreenState createState() => _StocksListScreenState();
 }
 
-// Loan Screen
-class LoanScreen extends StatefulWidget {
+class _StocksListScreenState extends State<StocksListScreen> {
+  List<dynamic> stocks = [];
+  bool isLoading = true;
+
   @override
-  _LoanScreenState createState() => _LoanScreenState();
-}
+  void initState() {
+    super.initState();
+    _fetchStocks();
+  }
 
-class _LoanScreenState extends State<LoanScreen> {
-  final TextEditingController _customerNameController = TextEditingController();
-  final TextEditingController _productNameController = TextEditingController();
-  final TextEditingController _customersNumberController = TextEditingController();
-  final TextEditingController _dateToPayController = TextEditingController();
-  final DBHelper _dbHelper = DBHelper();
-
-  DateTime? selectedDate;
-
-  void _submitLoan() async {
-    String customerName = _customerNameController.text.trim();
-    String productName = _productNameController.text.trim();
-    int customersNumber = int.tryParse(_customersNumberController.text) ?? 0;
-    String dateToPay = selectedDate?.toIso8601String() ?? '';
-
-    if (customerName.isEmpty || productName.isEmpty || customersNumber <= 0 || dateToPay.isEmpty) {
-      _showSnackBar('Please fill in all the details');
-      return;
-    }
+  Future<void> _fetchStocks() async {
+    setState(() {
+      isLoading = true;
+    });
 
     try {
-      await _dbHelper.insertLoan({
-        'customer_name': customerName,
-        'product_name': productName,
-        'customers_number': customersNumber,
-        'date_to_pay': dateToPay,
-      });
+      final response = await http.get(
+        Uri.parse('https://relax-pay-endpoints.onrender.com/stocks/stocks'),
+      );
 
-      _showSnackBar('Loan submitted successfully!');
-      _clearFields();
+      if (response.statusCode == 200) {
+        setState(() {
+          stocks = json.decode(response.body)['stocks'];
+          isLoading = false;
+        });
+      } else {
+        throw Exception('Failed to load stocks');
+      }
     } catch (e) {
-      _showSnackBar('Error: ${e.toString()}');
+      setState(() {
+        isLoading = false;
+      });
+      _showErrorSnackBar('Failed to load stocks. Please try again.');
     }
   }
 
-  void _showSnackBar(String message) {
+  void _showErrorSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
     );
-  }
-
-  void _clearFields() {
-    setState(() {
-      _customerNameController.clear();
-      _productNameController.clear();
-      _customersNumberController.clear();
-      _dateToPayController.clear();
-      selectedDate = null;
-    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Loan'),
+        title: Text('Stocks List'),
         centerTitle: true,
-      ),
-      body: Container(
-        height: MediaQuery.of(context).size.height,
-        alignment: Alignment.center,
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Card(
-              elevation: 4,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _buildTextField(_customerNameController, 'Customer Name'),
-                    SizedBox(height: 16),
-                    _buildTextField(_productNameController, 'Product Name'),
-                    SizedBox(height: 16),
-                    _buildTextField(_customersNumberController, 'Number of Customers', TextInputType.number),
-                    SizedBox(height: 16),
-                    _buildDatePicker(),
-                    SizedBox(height: 24),
-                    ElevatedButton(
-                      onPressed: _submitLoan,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.purple,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15),
-                        ),
-                        padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                      ),
-                      child: Text('Submit Loan', style: TextStyle(fontSize: 18, color: Colors.white)),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.refresh),
+            onPressed: _fetchStocks,
           ),
-        ),
+        ],
       ),
-    );
-  }
-
-  Widget _buildTextField(TextEditingController controller, String label, [TextInputType? keyboardType]) {
-    return TextField(
-      controller: controller,
-      keyboardType: keyboardType,
-      decoration: InputDecoration(
-        labelText: label,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(15),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDatePicker() {
-    return TextField(
-      controller: _dateToPayController,
-      readOnly: true,
-      decoration: InputDecoration(
-        labelText: 'Date to Pay',
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(15),
-        ),
-      ),
-      onTap: () async {
-        DateTime? date = await showDatePicker(
-          context: context,
-          initialDate: DateTime.now(),
-          firstDate: DateTime.now(),
-          lastDate: DateTime(2101),
-        );
-        if (date != null) {
-          setState(() {
-            selectedDate = date;
-            _dateToPayController.text = date.toLocal().toString().split(' ')[0];
-          });
-        }
-      },
+      body: isLoading
+          ? Center(child: CircularProgressIndicator())
+          : stocks.isEmpty
+              ? Center(child: Text('No stocks available'))
+              : RefreshIndicator(
+                  onRefresh: _fetchStocks,
+                  child: ListView.builder(
+                    itemCount: stocks.length,
+                    itemBuilder: (context, index) {
+                      final stock = stocks[index];
+                      return Card(
+                        elevation: 4,
+                        margin:
+                            EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        child: ExpansionTile(
+                          title: Text(
+                            stock['product'],
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          subtitle: Text('Quantity: ${stock['quantity']}'),
+                          trailing: Text(
+                            '\$${stock['price'].toStringAsFixed(2)}',
+                            style: TextStyle(
+                              color: Colors.green,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          children: [
+                            Padding(
+                              padding: EdgeInsets.all(16.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                      'Total Value: \$${(stock['price'] * stock['quantity']).toStringAsFixed(2)}'),
+                                  SizedBox(height: 8),
+                                  Text(
+                                      'Last Updated: ${DateTime.now().toString()}'), // Replace with actual last updated time if available
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
     );
   }
 }
