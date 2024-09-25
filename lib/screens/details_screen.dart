@@ -102,7 +102,7 @@ class _BuyingScreenState extends State<BuyingScreen> {
   Future<void> _postStockData(Map<String, dynamic> data) async {
     final response = await http.post(
       Uri.parse(
-          'https://relax-pay-endpoints.onrender.com/customer/stock'), // Buying endpoint
+          'https://relax-pay-endpoints.onrender.com/stocks/stock'),
       body: json.encode(data),
       headers: {'Content-Type': 'application/json'},
     );
